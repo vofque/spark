@@ -26,7 +26,7 @@ import scala.language.existentials
 
 import com.google.common.reflect.TypeToken
 
-import org.apache.spark.sql.catalyst.analysis.{GetColumnByOrdinal, UnresolvedAttribute, UnresolvedExtractValue}
+import org.apache.spark.sql.catalyst.analysis.{GetColumnByOrdinal, UnresolvedAttribute, UnresolvedExtractValue, UnresolvedGetArrayFromMap}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.objects._
 import org.apache.spark.sql.catalyst.util.{ArrayBasedMapData, DateTimeUtils, GenericArrayData}
@@ -278,24 +278,20 @@ object JavaTypeInference {
 
       case _ if mapType.isAssignableFrom(typeToken) =>
         val (keyType, valueType) = mapKeyValueType(typeToken)
-        val keyDataType = inferDataType(keyType)._1
-        val valueDataType = inferDataType(valueType)._1
 
         val keyData =
           Invoke(
-            MapObjects(
+            UnresolvedMapObjects(
               p => deserializerFor(keyType, Some(p)),
-              Invoke(getPath, "keyArray", ArrayType(keyDataType)),
-              keyDataType),
+              UnresolvedGetArrayFromMap(getPath, GetArrayFromMap.Key())),
             "array",
             ObjectType(classOf[Array[Any]]))
 
         val valueData =
           Invoke(
-            MapObjects(
+            UnresolvedMapObjects(
               p => deserializerFor(valueType, Some(p)),
-              Invoke(getPath, "valueArray", ArrayType(valueDataType)),
-              valueDataType),
+              UnresolvedGetArrayFromMap(getPath, GetArrayFromMap.Value())),
             "array",
             ObjectType(classOf[Array[Any]]))
 
