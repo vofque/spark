@@ -30,6 +30,7 @@ import org.apache.spark.serializer._
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow, ScalaReflection}
 import org.apache.spark.sql.catalyst.ScalaReflection.universe.TermName
+import org.apache.spark.sql.catalyst.analysis.UnresolvedException
 import org.apache.spark.sql.catalyst.encoders.RowEncoder
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.codegen._
@@ -280,6 +281,27 @@ case class StaticInvoke(
      """
     ev.copy(code = code)
   }
+}
+
+/**
+ * When constructing [[Invoke]], the data type must be given, which may be not possible to define
+ * before analysis. This class acts like a placeholder for [[Invoke]], and will be replaced by
+ * [[Invoke]] during analysis after the input data is resolved. Data type passed to [[Invoke]]
+ * will be defined by applying [[dataTypeFunction]] to the data type of the input data.
+ */
+case class UnresolvedInvoke(
+    targetObject: Expression,
+    functionName: String,
+    dataTypeFunction: DataType => DataType,
+    arguments: Seq[Expression] = Nil,
+    propagateNull: Boolean = true,
+    returnNullable : Boolean = true) extends UnaryExpression with Unevaluable {
+
+  override def child: Expression = targetObject
+
+  override def dataType: DataType = throw new UnresolvedException(this, "dataType")
+
+  override lazy val resolved = false
 }
 
 /**
