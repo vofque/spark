@@ -26,7 +26,8 @@ import scala.language.existentials
 
 import com.google.common.reflect.TypeToken
 
-import org.apache.spark.sql.catalyst.analysis.{GetColumnByOrdinal, UnresolvedAttribute, UnresolvedExtractValue}
+import org.apache.spark.sql.AnalysisException
+import org.apache.spark.sql.catalyst.analysis.{GetColumnByOrdinal, UnresolvedAttribute, UnresolvedExtractValue, UnresolvedInvoke}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.objects._
 import org.apache.spark.sql.catalyst.util.{ArrayBasedMapData, DateTimeUtils, GenericArrayData}
@@ -278,24 +279,34 @@ object JavaTypeInference {
 
       case _ if mapType.isAssignableFrom(typeToken) =>
         val (keyType, valueType) = mapKeyValueType(typeToken)
-        val keyDataType = inferDataType(keyType)._1
-        val valueDataType = inferDataType(valueType)._1
 
+        def getKeyArrayDataType(dataType: DataType): DataType = {
+          dataType match {
+            case MapType(kt, _, _) => ArrayType(kt)
+            case other => throw new AnalysisException(
+              "Need a map field but got " + other.catalogString)
+          }
+        }
         val keyData =
           Invoke(
-            MapObjects(
+            UnresolvedMapObjects(
               p => deserializerFor(keyType, Some(p)),
-              Invoke(getPath, "keyArray", ArrayType(keyDataType)),
-              keyDataType),
+              UnresolvedInvoke(getPath, "keyArray", getKeyArrayDataType)),
             "array",
             ObjectType(classOf[Array[Any]]))
 
+        def getValueArrayDataType(dataType: DataType): DataType = {
+          dataType match {
+            case MapType(_, vt, _) => ArrayType(vt)
+            case other => throw new AnalysisException(
+              "Need a map field but got " + other.catalogString)
+          }
+        }
         val valueData =
           Invoke(
-            MapObjects(
+            UnresolvedMapObjects(
               p => deserializerFor(valueType, Some(p)),
-              Invoke(getPath, "valueArray", ArrayType(valueDataType)),
-              valueDataType),
+              UnresolvedInvoke(getPath, "valueArray", getValueArrayDataType)),
             "array",
             ObjectType(classOf[Array[Any]]))
 

@@ -509,3 +509,24 @@ case class UnresolvedOrdinal(ordinal: Int)
   override def nullable: Boolean = throw new UnresolvedException(this, "nullable")
   override lazy val resolved = false
 }
+
+/**
+ * When constructing `Invoke`, the data type must be given, which may be not possible to define
+ * before analysis. This class acts like a placeholder for `Invoke`, and will be replaced by
+ * `Invoke` during analysis after the input data is resolved. Data type passed to `Invoke``
+ * will be defined by applying `dataTypeFunction` to the data type of the input data.
+ */
+case class UnresolvedInvoke(
+    targetObject: Expression,
+    functionName: String,
+    dataTypeFunction: DataType => DataType,
+    arguments: Seq[Expression] = Nil,
+    propagateNull: Boolean = true,
+    returnNullable : Boolean = true) extends UnaryExpression with Unevaluable {
+
+  override def child: Expression = targetObject
+
+  override def dataType: DataType = throw new UnresolvedException(this, "dataType")
+
+  override lazy val resolved = false
+}

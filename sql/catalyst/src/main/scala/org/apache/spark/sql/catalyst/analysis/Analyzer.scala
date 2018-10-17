@@ -1071,6 +1071,8 @@ class Analyzer(
           }
         case UnresolvedExtractValue(child, fieldName) if child.resolved =>
           ExtractValue(child, fieldName, resolver)
+        case UnresolvedInvoke(child, funcName, dataTypeFunction, args, pn, rn) if child.resolved =>
+          Invoke(child, funcName, dataTypeFunction(child.dataType), args, pn, rn)
       }
     } catch {
       case a: AnalysisException if !throws => expr
