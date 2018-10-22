@@ -17,6 +17,7 @@
 
 package test.org.apache.spark.sql;
 
+import java.io.Serializable;
 import java.util.*;
 
 import org.junit.*;
@@ -26,7 +27,7 @@ import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.test.TestSparkSession;
 
-public class JavaBeanDeserializationSuite {
+public class JavaBeanDeserializationSuite implements Serializable {
 
   private TestSparkSession spark;
 
@@ -44,9 +45,15 @@ public class JavaBeanDeserializationSuite {
   private static final List<ArrayRecord> ARRAY_RECORDS = new ArrayList<>();
 
   static {
-    ARRAY_RECORDS.add(new ArrayRecord(1, Arrays.asList(new Interval(111, 211), new Interval(121, 221))));
-    ARRAY_RECORDS.add(new ArrayRecord(2, Arrays.asList(new Interval(112, 212), new Interval(122, 222))));
-    ARRAY_RECORDS.add(new ArrayRecord(3, Arrays.asList(new Interval(113, 213), new Interval(123, 223))));
+    ARRAY_RECORDS.add(
+      new ArrayRecord(1, Arrays.asList(new Interval(111, 211), new Interval(121, 221)))
+    );
+    ARRAY_RECORDS.add(
+      new ArrayRecord(2, Arrays.asList(new Interval(112, 212), new Interval(122, 222)))
+    );
+    ARRAY_RECORDS.add(
+      new ArrayRecord(3, Arrays.asList(new Interval(113, 213), new Interval(123, 223)))
+    );
   }
 
   @Test
@@ -77,6 +84,8 @@ public class JavaBeanDeserializationSuite {
     MAP_RECORDS.add(new MapRecord(3,
       toMap(Arrays.asList("a", "b"), Arrays.asList(new Interval(113, 213), new Interval(123, 223)))
     ));
+    MAP_RECORDS.add(new MapRecord(4, new HashMap<>()));
+    MAP_RECORDS.add(new MapRecord(5, null));
   }
 
   private static <K, V> Map<K, V> toMap(Collection<K> keys, Collection<V> values) {
@@ -102,6 +111,7 @@ public class JavaBeanDeserializationSuite {
       .as(encoder);
 
     List<MapRecord> records = dataset.collectAsList();
+
     Assert.assertEquals(records, MAP_RECORDS);
   }
 
@@ -178,7 +188,7 @@ public class JavaBeanDeserializationSuite {
     public boolean equals(Object obj) {
       if (!(obj instanceof MapRecord)) return false;
       MapRecord other = (MapRecord) obj;
-      return (other.id == this.id) && other.intervals.equals(this.intervals);
+      return (other.id == this.id) && Objects.equals(other.intervals, this.intervals);
     }
 
     @Override

@@ -509,19 +509,3 @@ case class UnresolvedOrdinal(ordinal: Int)
   override def nullable: Boolean = throw new UnresolvedException(this, "nullable")
   override lazy val resolved = false
 }
-
-/**
- * Extracts a key/value array from a Map expression.
- * This expression will be replaced with `Invoke` during analysis after the input data is resolved.
- *
- * @param child a Map expression to extract array from
- * @param source source of array elements, can be `Key` or `Value`
- */
-case class UnresolvedGetArrayFromMap private(
-    child: Expression,
-    source: GetArrayFromMap.Source) extends UnaryExpression with Unevaluable {
-
-  override def dataType: DataType = throw new UnresolvedException(this, "dataType")
-
-  override lazy val resolved = false
-}

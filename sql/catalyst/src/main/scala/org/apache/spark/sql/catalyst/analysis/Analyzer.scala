@@ -1071,8 +1071,6 @@ class Analyzer(
           }
         case UnresolvedExtractValue(child, fieldName) if child.resolved =>
           ExtractValue(child, fieldName, resolver)
-        case UnresolvedGetArrayFromMap(child, source) if child.resolved =>
-          GetArrayFromMap(child, source)
       }
     } catch {
       case a: AnalysisException if !throws => expr

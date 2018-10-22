@@ -21,7 +21,6 @@ import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis._
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, CodeGenerator, ExprCode}
-import org.apache.spark.sql.catalyst.expressions.objects.Invoke
 import org.apache.spark.sql.catalyst.util.{quoteIdentifier, ArrayData, GenericArrayData, MapData, TypeUtils}
 import org.apache.spark.sql.types._
 
@@ -380,36 +379,5 @@ case class GetMapValue(child: Expression, key: Expression)
 
   override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
     doGetValueGenCode(ctx, ev, child.dataType.asInstanceOf[MapType])
-  }
-}
-
-object GetArrayFromMap {
-
-  abstract class Source
-  case class Key() extends Source
-  case class Value() extends Source
-
-  /**
-   * Returns a resolved `Invoke` expression which will invoke:
-   * `keyArray` to get an array of keys in case of `Key` source
-   * `valueArray` to get an array of values in case of `Value` source
-   *
-   * @param child a Map expression to extract array from
-   * @param source source of array elements, can be `Key` or `Value`
-   */
-  def apply(
-      child: Expression,
-      source: Source): Expression = {
-
-    child.dataType match {
-      case mt @ MapType(_, _, _) =>
-        source match {
-          case Key() => Invoke(child, "keyArray", ArrayType(mt.keyType))
-          case Value() => Invoke(child, "valueArray", ArrayType(mt.valueType))
-        }
-      case other =>
-        throw new AnalysisException(
-          s"Can't extract array from $child: need map type but got ${other.catalogString}")
-    }
   }
 }

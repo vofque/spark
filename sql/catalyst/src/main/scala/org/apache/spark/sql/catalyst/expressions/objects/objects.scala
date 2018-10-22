@@ -1787,3 +1787,75 @@ case class ValidateExternalType(child: Expression, expected: DataType)
     ev.copy(code = code, isNull = input.isNull)
   }
 }
+
+object GetArrayFromMap {
+  abstract class Source
+  case class Key() extends Source
+  case class Value() extends Source
+}
+
+/**
+ * Extracts a key/value array from a Map expression.
+ *
+ * @param child a Map expression to extract array from
+ * @param source source of array elements, can be `Key` or `Value`
+ */
+case class GetArrayFromMap(
+    child: Expression,
+    source: GetArrayFromMap.Source) extends Expression with NonSQLExpression {
+
+  import GetArrayFromMap._
+
+  private val functionName: String = source match {
+    case Key() => "keyArray"
+    case Value() => "valueArray"
+  }
+
+  private lazy val encodedFunctionName = TermName(functionName).encodedName.toString
+
+  override def nullable: Boolean = child.nullable
+  override def children: Seq[Expression] = child :: Nil
+
+  lazy val dataType: DataType = {
+    child.dataType match {
+      case MapType(kt, vt, _) =>
+        source match {
+          case Key() => ArrayType(kt)
+          case Value() => ArrayType(vt)
+        }
+      case other =>
+        throw new RuntimeException(
+          s"Can't extract array from $child: need map type but got ${other.catalogString}")
+    }
+  }
+
+  override def eval(input: InternalRow): Any = {
+    val mapObj = child.eval(input)
+    if (!mapObj.isInstanceOf[MapData]) {
+      throw new RuntimeException(
+        s"Can't extract array from $child: need map type but got ${mapObj.getClass}")
+    }
+    if (mapObj == null) {
+      null
+    } else {
+      val method = mapObj.getClass.getDeclaredMethod(functionName)
+      method.invoke(mapObj)
+    }
+  }
+
+  override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
+    val javaType = CodeGenerator.javaType(dataType)
+    val obj = child.genCode(ctx)
+
+    val code = obj.code + code"""
+      boolean ${ev.isNull} = ${obj.isNull};
+      $javaType ${ev.value} = null;
+      if (!${obj.isNull}) {
+        ${ev.value} = ${obj.value}.$encodedFunctionName();
+      }
+    """
+    ev.copy(code = code)
+  }
+
+  override def toString: String = s"$child.$functionName"
+}
